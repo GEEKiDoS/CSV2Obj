@@ -13,8 +13,7 @@ Each row of the config.txt is the corresponding column name in the CSV file, the
 4   Texture coord U
 5   Texture coord V
 6   Index
-7   Vertex Position X
-8   Model Scale
+7   Model Scale
 ```
 
 2. Drag .csv files onto the executable file
