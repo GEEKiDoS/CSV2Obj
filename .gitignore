@@ -1,0 +1,7 @@
+.vs/*
+
+*.exe
+*.obj
+*.pdb
+
+CSV2Obj/obj/*

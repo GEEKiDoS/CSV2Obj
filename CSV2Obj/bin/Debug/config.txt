@@ -1,0 +1,7 @@
+WorldSpacePosition 0
+WorldSpacePosition 1
+WorldSpacePosition 2
+UVDiffuse 0
+UVDiffuse 1
+Vertex
+25.4
