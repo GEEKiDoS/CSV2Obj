@@ -22,7 +22,7 @@ namespace CSV2Obj
         }
     }
 
-    public class float3
+    public class float3: IFormattable
     {
         float[] data = new float[3] { 0, 0, 0 };
 
@@ -55,9 +55,9 @@ namespace CSV2Obj
             return $"{x.ToStdString("N6")} {y.ToStdString("N6")} {z.ToStdString("N6")}";
         }
 
-        public string ToString(string format)
+        public string ToString(string format, IFormatProvider formatProvider)
         {
-            if(format == "xy")
+            if(format != null && format.Trim() == "xy")
             {
                 return $"{x.ToStdString("N6")} {y.ToStdString("N6")}";
             }
