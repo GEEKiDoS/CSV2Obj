@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -11,7 +12,29 @@ namespace CSV2Obj
     {
         static void Main(string[] args)
         {
+            string cfgPath = "config.txt";
+            if (!File.Exists(cfgPath))
+                cfgPath = Path.Combine(new FileInfo(Process.GetCurrentProcess().MainModule.FileName).DirectoryName, "config.txt");
+
+            if(!File.Exists(cfgPath))
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Config file not exists!");
+
+                Console.ReadLine();
+                return;
+            }
+
             string[] config = File.ReadAllLines("config.txt");
+
+            if(config.Length != 7 && config.Length != 10)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Config file not correct!");
+
+                Console.ReadLine();
+                return;
+            }
 
             foreach(var arg in args)
             {
@@ -53,6 +76,8 @@ namespace CSV2Obj
 
             var faces = new List<Face>();
 
+            var hasNormal = config.Length == 10;
+
             // Read all vertex and uvs
             using (var sr = fileInfo.OpenText())
             {
@@ -78,21 +103,44 @@ namespace CSV2Obj
                         {
                             index = idx + 1,
 
-                            x = float.Parse(cols[keyValues[config[0]]].Trim()) * scale,
-                            y = float.Parse(cols[keyValues[config[1]]].Trim()) * scale,
-                            z = float.Parse(cols[keyValues[config[2]]].Trim()) * scale,
+                            pos = new float3
+                            {
+                                x = float.Parse(cols[keyValues[config[0]]].Trim()) * scale,
+                                y = float.Parse(cols[keyValues[config[1]]].Trim()) * scale,
+                                z = float.Parse(cols[keyValues[config[2]]].Trim()) * scale,
+                            }
                         };
 
                         var t = new UV
                         {
                             index = idx + 1,
 
-                            u = float.Parse(cols[keyValues[config[3]]].Trim()),
-                            v = 1.0f - float.Parse(cols[keyValues[config[4]]].Trim()),
+                            uv = new float3
+                            {
+                                x = float.Parse(cols[keyValues[config[3]]].Trim()),
+                                y = 1.0f - float.Parse(cols[keyValues[config[4]]].Trim())
+                            }
                         };
 
                         vertexes.Add(v);
                         uvs.Add(t);
+
+                        if(hasNormal)
+                        {
+                            var n = new Normal
+                            {
+                                index = idx + 1,
+
+                                dir = new float3
+                                {
+                                    x = float.Parse(cols[keyValues[config[7]]].Trim()),
+                                    y = float.Parse(cols[keyValues[config[8]]].Trim()),
+                                    z = float.Parse(cols[keyValues[config[9]]].Trim()),
+                                }
+                            };
+
+                            normals.Add(n);
+                        }
                     }
                 }
             }
@@ -101,7 +149,7 @@ namespace CSV2Obj
             for(int i = 0; i < vertexes.Count; i += 3)
             {
                 // IDK why
-                if (vertexes[i] == vertexes[i + 1])
+                if (vertexes[i].pos == vertexes[i + 1].pos)
                     continue;
 
                 // Build face
@@ -120,62 +168,37 @@ namespace CSV2Obj
                     }
                 };
 
-/*              // I don't know how to calcuulate then right now
-                // Calc normal
-                var n = new Normal
+                if(hasNormal)
                 {
-                    index = faces.Count,
-                };
-
-                for(int vi = 0; vi < 3; vi++)
-                {
-                    var cur = f.v[vi];
-                    var next = f.v[(vi + 1) % 3];
-
-                    n.x += (cur.y - next.y) * (cur.z + next.z);
-                    n.y += (cur.z - next.z) * (cur.x + next.x);
-                    n.z += (cur.x - next.x) * (cur.y + next.y);
+                    f.n = new Normal[] {
+                        normals[i],
+                        normals[i + 1],
+                        normals[i + 2],
+                    };
                 }
-
-                n.Normalize();
-                f.n = new Normal[] { n,n,n };
-
-                if (float.IsNaN(n.x))
-                    throw new Exception("WTF");
-
-                normals.Add(n);*/
 
                 faces.Add(f);
             }
 
             // Center the model
-            double[] sum = { 0, 0, 0 };
+            float3 sum = new float3();
             long count = 0;
 
             foreach (var f in faces)
             {
                 foreach (var v in f.v)
                 {
-                    sum[0] += v.x;
-                    sum[1] += v.y;
-                    sum[2] += v.z;
+                    sum += v.pos;
 
                     count++;
                 }
             }
 
-            float[] offset =
-            {
-                Convert.ToSingle(sum[0] / count),
-                Convert.ToSingle(sum[1] / count),
-                Convert.ToSingle(sum[2] / count)
-            };
+            var offset = sum / count;
 
             foreach (var v in vertexes)
             {
-                v.x -= offset[0];
-                v.y -= offset[1];
-                v.z -= offset[2];
+                v.pos -= offset;
             }
 
             // Build the obj
@@ -209,14 +232,15 @@ namespace CSV2Obj
                 objBuilder.AppendLine(v.ToString());
 
             objBuilder.AppendLine($"# Vertex count:{ vertexes.Count }\n");
-
-/*           
+          
             // Write normals
-            foreach (var n in normals)
-                objBuilder.AppendLine(n.ToString());
+            if(hasNormal)
+            {
+                foreach (var n in normals)
+                    objBuilder.AppendLine(n.ToString());
 
-            objBuilder.AppendLine($"# Calculated normal count:{ normals.Count }\n");
-*/
+                objBuilder.AppendLine($"# Calculated normal count:{ normals.Count }\n");
+            }
 
             // Write uvs
             foreach (var t in uvs)
